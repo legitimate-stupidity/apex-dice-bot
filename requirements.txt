@@ -1,0 +1,9 @@
+aiohttp
+torch
+colorama
+fastapi
+uvicorn
+websockets
+numpy
+scipy
+optuna

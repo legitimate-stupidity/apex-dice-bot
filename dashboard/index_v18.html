@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantumLeap v18.0</title>
+    <style>
+        :root {
+            --bg-color: #1a1b26; --text-color: #c0caf5; --header-color: #7aa2f7;
+            --panel-bg: #24283b; --border-color: #414868; --green: #9ece6a;
+            --red: #f7768e; --yellow: #e0af68; --purple: #bb9af7;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color); color: var(--text-color);
+            margin: 0; padding: 24px; display: flex; flex-direction: column;
+            height: calc(100vh - 48px);
+        }
+        h1, h2, h3 { margin: 0 0 10px 0; color: var(--header-color); }
+        .panel {
+            background-color: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        #header { display: flex; justify-content: space-between; align-items: center; }
+        #main-content { display: flex; flex-direction: column; flex-grow: 1; min-height: 0; }
+        
+        /* Tabs */
+        .tab-nav { display: flex; border-bottom: 1px solid var(--border-color); }
+        .tab-btn {
+            padding: 14px 20px; border: none; background: none; color: var(--text-color);
+            cursor: pointer; font-size: 16px; border-bottom: 3px solid transparent;
+        }
+        .tab-btn.active { color: var(--header-color); border-bottom-color: var(--header-color); }
+        .tab-content { display: none; padding-top: 20px; flex-grow: 1; min-height: 0; }
+        .tab-content.active { display: flex; flex-direction: column; }
+        
+        #dashboard-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        #logs-panel { flex-grow: 1; min-height: 400px; display: flex; flex-direction: column; }
+        
+        /* Strategy Tab */
+        #strategy-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        
+        /* Forms */
+        .form-group { display: flex; flex-direction: column; margin-bottom: 15px; }
+        .form-group label { margin-bottom: 5px; font-size: 14px; color: #787c99; }
+        .form-group input, .form-group select {
+            background: var(--bg-color); border: 1px solid var(--border-color);
+            color: var(--text-color); padding: 10px; border-radius: 5px; font-size: 16px;
+        }
+        
+        /* Buttons */
+        button {
+            background-color: var(--header-color); color: var(--bg-color); border: none;
+            border-radius: 5px; padding: 10px 15px; font-size: 16px; cursor: pointer;
+            transition: all 0.2s ease; margin-right: 10px;
+        }
+        button:hover { opacity: 0.8; }
+        .btn-danger { background-color: var(--red); }
+        .btn-success { background-color: var(--green); }
+        .btn-secondary { background-color: var(--purple); }
+        
+        /* Log Container */
+        #log-container {
+            flex-grow: 1; overflow-y: auto; background-color: var(--bg-color);
+            border: 1px solid var(--border-color); border-radius: 5px; padding: 15px;
+            font-family: 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 14px;
+        }
+        .log-line { margin: 0; }
+        .log-error { color: var(--red); } .log-warning { color: var(--yellow); }
+        .log-info { color: var(--text-color); } .log-win { color: var(--green); }
+        .log-loss { color: var(--red); }
+        
+        /* Strategy List */
+        .item-list-container { max-height: 500px; overflow-y: auto; }
+        .strategy-item {
+            background: var(--bg-color); border: 1px solid var(--border-color);
+            border-radius: 5px; padding: 15px; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .strategy-item h4 { margin: 0; color: var(--purple); }
+        .strategy-item p { margin: 5px 0 0 0; font-size: 14px; color: #787c99; }
+        .strategy-item .actions { text-align: right; flex-shrink: 0; }
+        
+        #ws-status { font-size: 18px; font-weight: bold; }
+        .status-stopped { color: var(--red); } .status-running { color: var(--green); }
+    </style>
+</head>
+<body>
+
+    <div class="panel" id="header">
+        <h1>QuantumLeap v18.0 <span style="color: #ff9e64;">"Chronos"</span></h1>
+        <div id="ws-status" class="status-stopped">OFFLINE</div>
+    </div>
+
+    <div class="tab-nav">
+        <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+        <button class="tab-btn" data-tab="strategies">Strategy Manager</button>
+        <button class="tab-btn" data-tab="optimization">Optimization</button>
+    </div>
+
+    <div id="main-content">
+        <div class="tab-content active" id="tab-dashboard">
+            <div id="dashboard-layout">
+                <div class="panel" id="logs-panel">
+                    <h2>Real-time Log Stream</h2>
+                    <div id="log-container">
+                        <p class="log-line log-warning">Waiting for server connection...</p>
+                    </div>
+                </div>
+                <div class="panel" id="status-panel">
+                    <h2>Running Bots</h2>
+                    <div id="running-bots-list" class="item-list-container">
+                        <p id="no-running-bots">No bots are currently running.</p>
+                    </div>
+                    <h2 style="margin-top: 20px;">Optimization Jobs</h2>
+                    <div id="running-hpt-list" class="item-list-container">
+                        <p id="no-running-hpt">No HPT jobs are running.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-strategies">
+            <div id="strategy-layout">
+                <div class="panel" id="create-strategy-panel">
+                    <h2>Create Strategy</h2>
+                    <form id="strategy-form">
+                        <div class="form-group"> <label for="name">Strategy Name</label> <input type="text" id="name" required> </div>
+                        <div class="form-group"> <label for="currency">Currency</label> <input type="text" id="currency" value="BTC" required> </div>
+                        <div class="form-group"> <label for="base_bet_divisor">Bet Divisor</label> <input type="number" id="base_bet_divisor" value="10000" step="100"> </div>
+                        <div class="form-group"> <label for="kappa">Base Kappa (0-1)</label> <input type="number" id="kappa" value="0.5" step="0.1" min="0" max="1"> </div>
+                        <div class="form-group"> <label for="profit_target_percent">Profit Target %</label> <input type="number" id="profit_target_percent" value="5.0" step="0.1"> </div>
+                        <div class="form-group"> <label for="loss_limit_percent">Loss Limit %</label> <input type="number" id="loss_limit_percent" value="10.0" step="0.1"> </div>
+                        <button type="submit" class="btn-success">Create Strategy</button>
+                    </form>
+                </div>
+                <div class="panel" id="strategy-list-panel">
+                    <h2>Saved Strategies</h2>
+                    <div id="strategy-list-container" class="item-list-container">
+                        </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="tab-optimization">
+            <div class="panel">
+                <h2>Hyperparameter Optimization (HPT)</h2>
+                <p>Run thousands of simulations to find the best AI parameters.</p>
+                <div class="form-group">
+                    <label for="hpt-strategy-select">Select Strategy</label>
+                    <select id="hpt-strategy-select"></select>
+                </div>
+                <div class="form-group">
+                    <label for="hpt-trials">Number of Trials</label>
+                    <input type="number" id="hpt-trials" value="100">
+                </div>
+                <button id="start-hpt-btn" class="btn-secondary">Start HPT Run</button>
+            </div>
+            
+            <div class="panel">
+                <h2>Population-Based Training (PBT)</h2>
+                <p>Evolve a population of agents to discover novel strategies. (v18.0)</p>
+                <div class="form-group">
+                    <label for="pbt-strategy-select">Select Strategy</label>
+                    <select id="pbt-strategy-select"></select>
+                </div>
+                <button id="start-pbt-btn" class="btn-secondary">Start PBT Run</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Element Refs ---
+            const wsStatus = document.getElementById('ws-status');
+            const logContainer = document.getElementById('log-container');
+            const strategyForm = document.getElementById('strategy-form');
+            const strategyListContainer = document.getElementById('strategy-list-container');
+            const runningBotsList = document.getElementById('running-bots-list');
+            const noRunningBots = document.getElementById('no-running-bots');
+            const runningHptList = document.getElementById('running-hpt-list');
+            const noRunningHpt = document.getElementById('no-running-hpt');
+            const hptSelect = document.getElementById('hpt-strategy-select');
+            const pbtSelect = document.getElementById('pbt-strategy-select');
+            const startHptBtn = document.getElementById('start-hpt-btn');
+            const startPbtBtn = document.getElementById('start-pbt-btn');
+            
+            let socket = null;
+
+            // --- Utility Functions ---
+            function addLog(message, level = 'info') {
+                const p = document.createElement('p');
+                p.className = `log-line log-${level}`;
+                p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                logContainer.appendChild(p);
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+            
+            // --- Tab Switching ---
+            document.querySelectorAll('.tab-btn').forEach(button => {
+                button.onclick = () => {
+                    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                    button.classList.add('active');
+                    document.getElementById(`tab-${button.dataset.tab}`).classList.add('active');
+                };
+            });
+
+            // --- WebSocket Logic ---
+            function connectWebSocket() {
+                if (socket && socket.readyState === WebSocket.OPEN) return;
+                socket = new WebSocket(`ws://${window.location.host}/ws/logs`);
+                
+                socket.onopen = () => {
+                    wsStatus.textContent = 'LIVE'; wsStatus.className = 'status-running';
+                    addLog('WebSocket connection established.', 'info');
+                    checkStatus(); loadStrategies();
+                };
+                socket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'log') {
+                        addLog(data.message, data.level);
+                    } else if (data.type === 'bet_result') {
+                        const plClass = data.is_win ? 'win' : 'loss';
+                        addLog(
+                            `Bot ${data.strategy_id || ''} | Nonce: ${data.nonce} | ${data.is_win ? 'WIN' : 'LOSS'} | P/L: ${data.session_pl.toFixed(8)} | Balance: ${data.balance.toFixed(8)}`,
+                            plClass
+                        );
+                    }
+                };
+                socket.onclose = () => {
+                    wsStatus.textContent = 'OFFLINE'; wsStatus.className = 'status-stopped';
+                    addLog('WebSocket disconnected. Attempting to reconnect...', 'error');
+                    setTimeout(connectWebSocket, 3000);
+                };
+            }
+
+            // --- API Control ---
+            async function checkStatus() {
+                try {
+                    const response = await fetch('/api/status');
+                    const data = await response.json();
+                    
+                    // Update running bots
+                    runningBotsList.innerHTML = '';
+                    if (data.running_bots && data.running_bots.length > 0) {
+                        noRunningBots.style.display = 'none';
+                        data.running_bots.forEach(bot => {
+                            runningBotsList.innerHTML += `<div class="strategy-item"><div><h4>${bot.name} (ID: ${bot.strategy_id})</h4><p class="status-running">RUNNING</p></div><div class="actions"><button class="btn-danger" onclick="stopBot(${bot.strategy_id})">Stop</button></div></div>`;
+                        });
+                    } else {
+                        noRunningBots.style.display = 'block';
+                    }
+                    
+                    // Update running HPT
+                    runningHptList.innerHTML = '';
+                    if (data.running_hpt && data.running_hpt.length > 0) {
+                        noRunningHpt.style.display = 'none';
+                        data.running_hpt.forEach(job => {
+                            runningHptList.innerHTML += `<div class="strategy-item"><div><h4>Strategy ${job.strategy_id}</h4><p class="status-running">OPTIMIZING</p></div></div>`;
+                        });
+                    } else {
+                        noRunningHpt.style.display = 'block';
+                    }
+                    
+                } catch (e) {
+                    wsStatus.textContent = 'OFFLINE'; wsStatus.className = 'status-stopped';
+                }
+            }
+            
+            async function loadStrategies() {
+                try {
+                    const response = await fetch('/api/strategies');
+                    const data = await response.json();
+                    strategyListContainer.innerHTML = '';
+                    hptSelect.innerHTML = '';
+                    pbtSelect.innerHTML = '';
+                    if (data.strategies) {
+                        data.strategies.forEach(s => {
+                            const itemHTML = `
+                                <div class="strategy-item">
+                                    <div>
+                                        <h4>${s.name} (ID: ${s.id})</h4>
+                                        <p>${s.currency} | ${s.loss_limit_percent}% / ${s.profit_target_percent}% | Divisor: ${s.base_bet_divisor}</p>
+                                    </div>
+                                    <div class="actions">
+                                        <button class="btn-success" onclick="deployBot(${s.id}, 'live')">Deploy Live</button>
+                                        <button class="btn-secondary" onclick="deployBot(${s.id}, 'simulation')">Deploy Sim</button>
+                                    </div>
+                                </div>`;
+                            strategyListContainer.innerHTML += itemHTML;
+                            
+                            const optionHTML = `<option value="${s.id}">${s.name}</option>`;
+                            hptSelect.innerHTML += optionHTML;
+                            pbtSelect.innerHTML += optionHTML;
+                        });
+                    }
+                } catch (e) { addLog(`Failed to load strategies: ${e.message}`, 'error'); }
+            }
+            
+            strategyForm.onsubmit = async (e) => {
+                e.preventDefault();
+                const config = {
+                    name: document.getElementById('name').value,
+                    currency: document.getElementById('currency').value,
+                    base_bet_divisor: parseFloat(document.getElementById('base_bet_divisor').value),
+                    profit_target_percent: parseFloat(document.getElementById('profit_target_percent').value),
+                    loss_limit_percent: parseFloat(document.getElementById('loss_limit_percent').value),
+                    kappa: parseFloat(document.getElementById('kappa').value),
+                };
+                
+                try {
+                    const response = await fetch('/api/strategies', {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(config)
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        addLog(`Strategy '${config.name}' created with ID ${data.strategy_id}`, 'info');
+                        strategyForm.reset(); loadStrategies();
+                    } else { throw new Error(data.detail); }
+                } catch (e) { addLog(`Failed to create strategy: ${e.message}`, 'error'); }
+            };
+            
+            // --- HPT Button Logic ---
+            startHptBtn.onclick = async () => {
+                const config = {
+                    strategy_id: parseInt(hptSelect.value),
+                    n_trials: parseInt(document.getElementById('hpt-trials').value)
+                };
+                addLog(`Starting HPT for strategy ${config.strategy_id} (${config.n_trials} trials)...`, 'info');
+                try {
+                    const response = await fetch('/api/optimize', {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(config)
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.detail || data.message);
+                    addLog(data.message, 'info');
+                    checkStatus();
+                    document.querySelector('.tab-btn[data-tab="dashboard"]').click();
+                } catch(e) { addLog(`HPT failed to start: ${e.message}`, 'error'); }
+            };
+            
+            // --- Global Functions ---
+            window.deployBot = async (strategy_id, mode) => {
+                const sim_start_balance = 1.0; // Standardized
+                addLog(`Deploying strategy ${strategy_id} in ${mode} mode...`, 'info');
+                try {
+                    const response = await fetch('/api/deploy', {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ strategy_id, mode, sim_start_balance })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.detail || data.message);
+                    addLog(data.message, 'info');
+                    checkStatus();
+                    document.querySelector('.tab-btn[data-tab="dashboard"]').click();
+                } catch (e) { addLog(`Deployment failed: ${e.message}`, 'error'); }
+            };
+            
+            window.stopBot = async (strategy_id) => {
+                addLog(`Stopping bot (Strategy ${strategy_id})...`, 'info');
+                try {
+                    const response = await fetch(`/api/stop/${strategy_id}`, { method: 'POST' });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.detail || data.message);
+                    addLog(data.message, 'info');
+                    checkStatus();
+                } catch(e) { addLog(`Failed to stop: ${e.message}`, 'error'); }
+            };
+            
+            // --- Init ---
+            logContainer.innerHTML = '';
+            connectWebSocket();
+            setInterval(checkStatus, 5000);
+        });
+    </script>
+</body>
+</html>
